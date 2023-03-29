@@ -12,6 +12,8 @@ using iMobileDevice;
 using Newtonsoft.Json;
 using ICSharpCode.SharpZipLib.Zip;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+
 
 namespace iFakeLocation
 {
@@ -23,6 +25,48 @@ namespace iFakeLocation
             public EndpointMethod(string name) {
                 Name = name;
             }
+        }
+        private static readonly HttpClient client = new HttpClient();
+        private static double cheapLat;
+        private static double cheapLng;
+        private static async Task GetCheapestPrices()
+        {
+            HttpResponseMessage response = await client.GetAsync("https://projectzerothree.info/api.php?format=json");
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<CheapestPetrolPrices>(responseBody);
+            var u95 = result.regions.FirstOrDefault(x=>x.region == "All")
+                ?.prices.FirstOrDefault(x=>x.type == "U95");
+            Console.WriteLine(u95.lat);
+            Console.WriteLine(u95.lng);
+            cheapLat = u95.lat;
+            cheapLng = u95.lng;
+        }
+        public class CheapestPetrolPrices {
+            public List<regions> regions { get; set; }
+            public string updated { get; set; }
+        }
+
+        public class regions {
+            public string region { get; set; }
+            public List<prices> prices { get; set;}
+        }
+
+        public class prices {
+            public string state { get; set;}
+            public string price { get; set;}
+            public string postcode { get; set;}
+            public string name { get; set;}
+            public double lat  { get; set;}
+            public double lng { get; set;}
+            public string suburb { get; set;}
+            public string type { get; set;}
+        }
+
+        public enum FuelType {
+            E90,
+            U91,
+            U95,
+            U98
         }
 
         static bool TryBindListenerOnFreePort(out HttpListener httpListener, out int port) {
@@ -471,6 +515,7 @@ namespace iFakeLocation
                 OpenBrowser($"http://localhost:{port}/");
                 Console.WriteLine("iFakeLocation is now running at: " + $"http://localhost:{port}/");
                 Console.WriteLine("\nPress Ctrl-C to quit (or click the close button).");
+                GetCheapestPrices();
             }
             catch {
                 Console.WriteLine("Unable to start iFakeLocation using default web browser.");
